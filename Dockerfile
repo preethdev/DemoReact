@@ -1,22 +1,20 @@
-#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
-
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
+# build environment
+FROM node:16.0.0-alpine as build
 WORKDIR /app
+ENV PATH /app/node_modules/.bin:$PATH
+COPY package.json ./
+COPY package-lock.json ./
+RUN npm ci --silent
+RUN npm i react-scripts -g --silent
+COPY . ./
+RUN npm install
+RUN npm run build
+
+# production environment
+FROM nginx:stable-alpine
+COPY --from=build /app/build /usr/share/nginx/html
+
+# If you are using react-router, uncomment below line
+COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
-EXPOSE 443
-
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
-WORKDIR /src
-COPY ["TestDemo/TestDemo.csproj", "TestDemo/"]
-RUN dotnet restore "TestDemo/TestDemo.csproj"
-COPY . .
-WORKDIR "/src/TestDemo"
-RUN dotnet build "TestDemo.csproj" -c Release -o /app/build
-
-FROM build AS publish
-RUN dotnet publish "TestDemo.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "TestDemo.dll"]
+CMD ["nginx", "-g", "daemon off;"]
