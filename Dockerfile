@@ -9,11 +9,13 @@ RUN npm i react-scripts -g --silent
 COPY . ./
 RUN npm install
 RUN npm run build
+RUN npm install -g serve
+RUN serve -s build
 
 # production environment
 FROM nginx:alpine
 WORKDIR /usr/share/nginx/html
-COPY --from=builder /app/build
+COPY --from=builder /app/build ./
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
